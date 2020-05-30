@@ -19,6 +19,7 @@ using System.Windows.Shapes;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Windows.Media.Effects;
+using Microsoft.Win32;
 using Newtonsoft.Json;
 
 
@@ -33,35 +34,49 @@ namespace CC98.CardGenerator
     {
         private const string userinfoUrl = @"http://www.cc98.org/dispuser.asp?name=";
         private const string userinfoApiUrl = @"https://api.cc98.org/user/name/";
-        private HttpClient httpClient;
+	    private const string usertitlesApiUrl = @"https://api.cc98.org/config/global/all-user-title";
+
+		private HttpClient httpClient;
         private UserInfoV2 userInfo;
-
-        public MainWindow()
-        {
-            InitializeComponent();
-            httpClient = new HttpClient();
-            userInfo = new UserInfoV2();
-        }
+	    private UserTitleInfo[] userTitles;
 
 
-        private void OnPortraitDownloadCompleted(object sender, EventArgs e)
+	    public MainWindow()
+	    {
+		    InitializeComponent();
+		    httpClient = new HttpClient();
+		    userInfo = new UserInfoV2();
+		    userTitles = null;
+		    var client = new HttpClient();
+		    var response = client.GetAsync(usertitlesApiUrl).Result;
+		    if (response.IsSuccessStatusCode)
+		    {
+			    var str = response.Content.ReadAsStringAsync().Result;
+			    userTitles = JsonConvert.DeserializeObject<UserTitleInfo[]>(str);
+		    }
+	    }
+
+
+	    private void OnPortraitDownloadCompleted(object sender, EventArgs e)
         {
             var portraitimg = (BitmapImage) sender;
             Debug.WriteLine("original image size: {0} * {1}", portraitimg.Width, portraitimg.Height);
             Debug.WriteLine("original image pixel size: {0} * {1}", portraitimg.PixelWidth, portraitimg.PixelHeight);
             var sc = new ScaleTransform();
-            if (portraitimg.PixelWidth > portraitimg.PixelHeight)
-            {
-                sc.ScaleX = 200.0 / portraitimg.PixelWidth;
-                sc.ScaleY = 200.0 / portraitimg.PixelWidth;
-            }
-            else
-            {
-                sc.ScaleY = 200.0 / portraitimg.PixelHeight;
-                sc.ScaleX = 200.0 / portraitimg.PixelHeight;
-            }
+			//if (portraitimg.PixelWidth > portraitimg.PixelHeight)
+			//{
+			//    sc.ScaleX = 384.0 / portraitimg.PixelWidth;
+			//    sc.ScaleY = 384.0 / portraitimg.PixelWidth;
+			//}
+			//else
+			//{
+			//    sc.ScaleY = 384.0 / portraitimg.PixelHeight;
+			//    sc.ScaleX = 384.0 / portraitimg.PixelHeight;
+			//}
+	        sc.ScaleX = 384.0 / portraitimg.PixelWidth;
+			sc.ScaleY = 384.0 / portraitimg.PixelHeight;
 
-            var resizedimg = new TransformedBitmap();
+			var resizedimg = new TransformedBitmap();
             resizedimg.BeginInit();
             resizedimg.Source = portraitimg;
             resizedimg.Transform = sc;
@@ -76,23 +91,23 @@ namespace CC98.CardGenerator
 
             if (NRadioButton.IsChecked == true)
             {
-                imgfilename += @"\N.bmp";
-                brush = new SolidColorBrush(Color.FromRgb(35, 98, 98));
+                imgfilename += @"\N.png";
+                brush = new SolidColorBrush(Color.FromRgb(171, 199, 112));
             }
             else if (RRadioButton.IsChecked == true)
             {
-                imgfilename += @"\R.bmp";
-                brush = new SolidColorBrush(Color.FromRgb(15, 79, 121));
+                imgfilename += @"\R.png";
+                brush = new SolidColorBrush(Color.FromRgb(83, 161, 171));
             }
             else if (SRRadioButton.IsChecked == true)
             {
-                imgfilename += @"\SR.bmp";
-                brush = new SolidColorBrush(Color.FromRgb(129, 108, 33));
+                imgfilename += @"\SR.png";
+                brush = new SolidColorBrush(Color.FromRgb(235, 160, 95));
             }
             else
             {
-                imgfilename += @"\SSR.bmp";
-                brush = new SolidColorBrush(Color.FromRgb(51, 118, 116));
+                imgfilename += @"\SSR.png";
+                brush = new SolidColorBrush(Color.FromRgb(227, 200, 116));
             }
 
             var cardimg = new BitmapImage();
@@ -108,31 +123,33 @@ namespace CC98.CardGenerator
             //ShowImage.Source = cardimg;
             using (var dc = dg.Open())
             {
-                dc.DrawImage(cardimg, new Rect(0, 0, width, height));
+                
 
-                var portraitx = 31;
-                var portraity = 107;
-                if (resizedimg.PixelWidth < 200)
-                    portraitx += (200 - resizedimg.PixelWidth) / 2;
-                if (resizedimg.PixelHeight < 200)
-                    portraity += (200 - resizedimg.PixelHeight) / 2;
+                var portraitx = 128;
+                var portraity = 130;
+                //if (resizedimg.PixelWidth < 200)
+                //    portraitx += (200 - resizedimg.PixelWidth) / 2;
+                //if (resizedimg.PixelHeight < 200)
+                //    portraity += (200 - resizedimg.PixelHeight) / 2;
                 dc.DrawImage(resizedimg, new Rect(portraitx, portraity, resizedimg.PixelWidth, resizedimg.PixelHeight));
 
-                var username = new FormattedText(userInfo.Name, CultureInfo.GetCultureInfo("zh-cn"),
-                    FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("黑体"), FontStyles.Normal, FontWeights.Bold, FontStretches.Medium), 26,
-                    brush, null, TextFormattingMode.Ideal);
+	            dc.DrawImage(cardimg, new Rect(0, 0, width, height));
 
-                var geo = username.BuildGeometry(new Point(32, 32));
-                dc.DrawGeometry(brush, new Pen(Brushes.LightGoldenrodYellow, 0.8), geo);
+				var username = new FormattedText(userInfo.Name, CultureInfo.GetCultureInfo("zh-cn"),
+                    FlowDirection.LeftToRight,
+                    new Typeface(new FontFamily("黑体"), FontStyles.Normal, FontWeights.Bold, FontStretches.Medium), 48,
+                    brush, null, TextFormattingMode.Display);
+
+	            var geo = username.BuildGeometry(new Point(userInfo.Name.Length <= 3 ? 70 : 50, 40));
+                dc.DrawGeometry(new SolidColorBrush(Colors.White), new Pen(Brushes.LightGoldenrodYellow, 0.8), geo);
                 //dc.DrawText(username, new Point(32, 32));
 
                 var date = "注册时间: " + userInfo.RegisterTime.ToLongDateString();
                 var registerdate = new FormattedText(date, CultureInfo.GetCultureInfo("zh-cn"),
                     FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("华文楷体"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    18, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(registerdate, new Point(33, 315));
+                    new Typeface(new FontFamily("黑体"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
+                    22, new SolidColorBrush(Colors.White), null, TextFormattingMode.Display);
+                dc.DrawText(registerdate, new Point(195, 495));
 
                 string genderstr;
                 switch (userInfo.Gender)
@@ -150,57 +167,66 @@ namespace CC98.CardGenerator
 
                 var ge = "性别: " + genderstr;
                 var gender = new FormattedText(ge, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    14, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(gender, new Point(240, 140));
+                    new Typeface(new FontFamily("方正准圆_GBK"), FontStyles.Normal, FontWeights.Regular, FontStretches.Medium),
+                    28, brush, null, TextFormattingMode.Display);
+                dc.DrawText(gender, new Point(60, 560));
 
-                var ti = "风评: " + userInfo.Popularity;
-                var tittle = new FormattedText(ti, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    14, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(tittle, new Point(240, 180));
+	            var ti = userTitles.FirstOrDefault(t => t.Id == (userInfo.DisplayTitleId ?? -1));
+	            var titleStr = "头衔: " + (ti == null ? "98用户" : ti.Name);
+	            var title = new FormattedText(titleStr, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
+		            new Typeface(new FontFamily("方正准圆_GBK"), FontStyles.Normal, FontWeights.Regular, FontStretches.Medium),
+		            28, brush, null, TextFormattingMode.Display);
+	            dc.DrawText(title, new Point(360, 560));
 
                 var fa = "帖数: " + userInfo.PostCount;
                 var faction = new FormattedText(fa, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    14, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(faction, new Point(240, 220));
+                    new Typeface(new FontFamily("方正准圆_GBK"), FontStyles.Normal, FontWeights.Regular, FontStretches.Medium),
+                    28, brush, null, TextFormattingMode.Display);
+                dc.DrawText(faction, new Point(60, 605));
 
-                string rankstr=userInfo.LevelTitle;
-                if (userInfo.Privilege != "注册用户")
-                    rankstr = userInfo.Privilege;
-                else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 11))
-                    rankstr = "版主";
-                else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 23))
-                    rankstr = "实习版主";
-                else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 13))
-                    rankstr = "VIP";
-                else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 4))
-                    rankstr = "认证用户";
-                var ra = "权限: " + rankstr;
-                var rank = new FormattedText(ra, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    14, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(rank, new Point(240, 260));
+	            var po = "风评: " + userInfo.Popularity;
+	            var popularity = new FormattedText(po, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
+		            new Typeface(new FontFamily("方正准圆_GBK"), FontStyles.Normal, FontWeights.Regular, FontStretches.Medium),
+		            28, brush, null, TextFormattingMode.Display);
+	            dc.DrawText(popularity, new Point(360, 605));
 
-                var userlife = GetUserLife(userInfo);
+
+
+				//string rankstr=userInfo.LevelTitle;
+				//if (userInfo.Privilege != "注册用户")
+				//    rankstr = userInfo.Privilege;
+				//else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 11))
+				//    rankstr = "版主";
+				//else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 23))
+				//    rankstr = "实习版主";
+				//else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 13))
+				//    rankstr = "VIP";
+				//else if (userInfo.BoardMasterTitles.Any(m => m.BoardMasterLevel == 4))
+				//    rankstr = "认证用户";
+				//var ra = "权限: " + rankstr;
+				//var rank = new FormattedText(ra, CultureInfo.GetCultureInfo("zh-cn"), FlowDirection.LeftToRight,
+				//    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
+				//    14, brush, null, TextFormattingMode.Display);
+				//dc.DrawText(rank, new Point(240, 260));
+
+				var userlife = GetUserLife(userInfo);
                 var hp = new FormattedText(userlife.ToString(), CultureInfo.GetCultureInfo("zh-cn"),
                     FlowDirection.LeftToRight,
                     new Typeface(new FontFamily("华文行楷"), FontStyles.Normal, FontWeights.ExtraLight,
-                        FontStretches.Medium), 36, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(hp, new Point(80, 400));
+                        FontStretches.Medium), 56, brush, null, TextFormattingMode.Display);
+                dc.DrawText(hp, new Point(160, 890));
 
                 var pr = new FormattedText(userInfo.Prestige.ToString(), CultureInfo.GetCultureInfo("zh-cn"),
                     FlowDirection.LeftToRight,
                     new Typeface(new FontFamily("华文行楷"), FontStyles.Normal, FontWeights.ExtraLight,
-                        FontStretches.Medium), 36, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(pr, new Point(270, 400));
+                        FontStretches.Medium), 56, brush, null, TextFormattingMode.Display);
+                dc.DrawText(pr, new Point(390, 890));
 
                 var de = new FormattedText(DescriptionTextBox.Text, CultureInfo.GetCultureInfo("zh-cn"),
                     FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("微软雅黑"), FontStyles.Normal, FontWeights.Light, FontStretches.Medium),
-                    18, brush, null, TextFormattingMode.Ideal);
-                dc.DrawText(de, new Point(40, 520));
+                    new Typeface(new FontFamily("方正准圆_GBK"), FontStyles.Normal, FontWeights.Regular, FontStretches.Medium),
+                    32, brush, null, TextFormattingMode.Display);
+                dc.DrawText(de, new Point(65, 683));
             }
 
             ShowImage.Source = new DrawingImage(dg);
@@ -227,12 +253,24 @@ namespace CC98.CardGenerator
                 return;
             }
 
+            
             userInfo = await GetUserInfoByApiAsync();
+
+            string portrait;
+            if (File.Exists(PortraitTextBox.Text))
+            {
+                portrait = PortraitTextBox.Text;
+            }
+            else
+            {
+                portrait = userInfo.PortraitUrl;
+            }
+
 
             var portraitimg = new BitmapImage();
             portraitimg.DownloadCompleted += OnPortraitDownloadCompleted;
             portraitimg.BeginInit();
-            portraitimg.UriSource = new Uri(userInfo.PortraitUrl);
+            portraitimg.UriSource = new Uri(portrait);
             portraitimg.EndInit();
         }
 
@@ -384,6 +422,16 @@ namespace CC98.CardGenerator
             return userLife;
 
 
+        }
+
+        private void SelectPortraitButton_Click(object sender, RoutedEventArgs e)
+        {
+            var fileDialog = new OpenFileDialog();
+            fileDialog.Filter = "图片文件|*.bmp;*.png;*.jpg;*.jpeg;*.webp;*.tif;*.gif";
+            if (fileDialog.ShowDialog()==true)
+            {
+                PortraitTextBox.Text = fileDialog.FileName;
+            }
         }
     }
 
@@ -602,7 +650,20 @@ namespace CC98.CardGenerator
         StopPost = 3
     }
 
-    public class BoardMasterInfo
+	public class UserTitleInfo
+	{
+		public int Id { set; get; }
+
+		public string Name { set; get; }
+
+		public int Type { set; get; }
+
+		public int SortOrder { set; get; }
+
+		public string IconUri { set; get; }
+	}
+
+	public class BoardMasterInfo
     {
         public int UserId { get; set; }
         public string UserName { get; set; }
